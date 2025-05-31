@@ -116,8 +116,14 @@ class _UserListScreenState extends State<UserListScreen> {
                         builder: (_) => UserDetailScreen(user: state.user),
                       ),
                     ).then((_) {
-                      // When returning from detail screen, ensure we're in the right state
-                      if (_searchController.text.isEmpty && !_isSearching) {
+                      // When returning from detail screen, handle search state
+                      if (_searchController.text.isNotEmpty) {
+                        // If there's an active search, refresh the search results
+                        context.read<UserBloc>().add(
+                              UserSearchEvent(query: _searchController.text),
+                            );
+                      } else {
+                        // If no search is active, refresh the user list
                         context.read<UserBloc>().add(const UserRefreshEvent());
                       }
                     });

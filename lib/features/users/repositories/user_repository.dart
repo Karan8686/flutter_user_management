@@ -32,7 +32,53 @@ class UserRepository {
       // Build the endpoint URL based on whether we're searching or just fetching
       String endpoint = '/users?limit=$limit&skip=$skip';
       if (searchQuery != null && searchQuery.isNotEmpty) {
-        endpoint = '/users/search?q=$searchQuery';
+        // Split the search query into parts and search for each part
+        final searchParts = searchQuery.toLowerCase().split(' ');
+        List<User> allUsers = [];
+        int total = 0;
+
+        for (final part in searchParts) {
+          final encodedQuery = Uri.encodeComponent(part);
+          final searchEndpoint = '/users/search?q=$encodedQuery';
+          final searchResponse = await apiClient.get(searchEndpoint);
+
+          final List<User> users = (searchResponse['users'] as List)
+              .map((userData) => User.fromJson(userData))
+              .toList();
+
+          // Add users that match any part of the search query
+          for (final user in users) {
+            if (!allUsers.any((u) => u.id == user.id)) {
+              allUsers.add(user);
+            }
+          }
+
+          total = searchResponse['total'] as int;
+        }
+
+        // Sort users by how well they match the search query
+        allUsers.sort((a, b) {
+          final aFullName = '${a.firstName} ${a.lastName}'.toLowerCase();
+          final bFullName = '${b.firstName} ${b.lastName}'.toLowerCase();
+          final aMatch = searchQuery
+              .toLowerCase()
+              .split(' ')
+              .where((part) => aFullName.contains(part))
+              .length;
+          final bMatch = searchQuery
+              .toLowerCase()
+              .split(' ')
+              .where((part) => bFullName.contains(part))
+              .length;
+          return bMatch.compareTo(aMatch);
+        });
+
+        return {
+          'users': allUsers,
+          'total': allUsers.length,
+          'limit': limit,
+          'skip': skip,
+        };
       }
 
       final response = await apiClient.get(endpoint);

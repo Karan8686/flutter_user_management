@@ -37,6 +37,10 @@ class UserListItem extends StatelessWidget {
               const SizedBox(height: 4),
               Text(user.phone!),
             ],
+            if (user.company != null) ...[
+              const SizedBox(height: 4),
+              Text(user.company!),
+            ],
           ],
         ),
         onTap: onTap,

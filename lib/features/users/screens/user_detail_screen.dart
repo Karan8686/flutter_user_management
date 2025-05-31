@@ -25,7 +25,7 @@ class _UserDetailScreenState extends State<UserDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
 
     // Fetch posts and todos for this user
     context.read<PostBloc>().add(PostFetchEvent(userId: widget.user.id));
@@ -46,148 +46,90 @@ class _UserDetailScreenState extends State<UserDetailScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
+            Tab(text: 'Profile'),
             Tab(text: 'Posts'),
             Tab(text: 'Todos'),
           ],
         ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          _buildUserInfo(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPostsTab(),
-                _buildTodosTab(),
-              ],
-            ),
-          ),
+          _buildProfileTab(),
+          _buildPostsTab(),
+          _buildTodosTab(),
         ],
       ),
     );
   }
 
-  Widget _buildUserInfo() {
-    return Container(
+  Widget _buildProfileTab() {
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Profile Header
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Hero(
-                tag: 'user_${widget.user.id}',
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundImage: NetworkImage(widget.user.image),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.user.fullName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.work_outline,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            widget.user.formattedCompany,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.secondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.school_outlined,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            widget.user.university ?? 'No university info',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.secondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          // Profile Image
+          Center(
+            child: CircleAvatar(
+              radius: 60,
+              backgroundImage: NetworkImage(widget.user.image),
+            ),
           ),
           const SizedBox(height: 24),
 
-          // Contact Card
-          _buildInfoCard(
-            icon: Icons.contact_mail_outlined,
-            title: 'Contact',
+          // Personal Information
+          _buildSection(
+            title: 'Personal Information',
+            icon: Icons.person_outline,
             children: [
-              _buildContactRow(
-                icon: Icons.email_outlined,
-                label: 'Email',
-                value: widget.user.email,
-                onTap: () {
-                  // TODO: Add email launch functionality
-                },
-              ),
-              if (widget.user.phone != null)
-                _buildContactRow(
-                  icon: Icons.phone_outlined,
-                  label: 'Phone',
-                  value: widget.user.phone!,
-                  onTap: () {
-                    // TODO: Add phone call functionality
-                  },
-                ),
-              _buildContactRow(
-                icon: Icons.location_on_outlined,
-                label: 'Address',
-                value: widget.user.formattedAddress,
-                onTap: () {
-                  // TODO: Add map launch functionality
-                },
-              ),
+              if (widget.user.birthDate != null)
+                _buildInfoRow('Birth Date', widget.user.formattedBirthDate),
+              if (widget.user.age != null)
+                _buildInfoRow('Age', '${widget.user.age} years'),
+              if (widget.user.gender != null)
+                _buildInfoRow('Gender', widget.user.gender!),
+              if (widget.user.bloodGroup != null)
+                _buildInfoRow('Blood Group', widget.user.bloodGroup!),
+              if (widget.user.eyeColor != null)
+                _buildInfoRow('Eye Color', widget.user.eyeColor!),
+              if (widget.user.hair != null)
+                _buildInfoRow('Hair',
+                    '${widget.user.hair!['color']} ${widget.user.hair!['type']}'),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Professional Info Card
-          _buildInfoCard(
-            icon: Icons.business_outlined,
-            title: 'Professional',
+          // Contact Information
+          _buildSection(
+            title: 'Contact Information',
+            icon: Icons.contact_mail_outlined,
             children: [
-              if (widget.user.domain != null)
-                _buildInfoRow('Website', widget.user.domain!),
+              _buildInfoRow('Email', widget.user.email),
+              if (widget.user.phone != null)
+                _buildInfoRow('Phone', widget.user.phone!),
+              _buildInfoRow('Address', widget.user.formattedAddress),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Professional Information
+          _buildSection(
+            title: 'Professional Information',
+            icon: Icons.business_outlined,
+            children: [
               if (widget.user.companyDetails != null) ...[
+                _buildInfoRow(
+                    'Company', widget.user.companyDetails!['name'] ?? 'N/A'),
                 _buildInfoRow('Department',
                     widget.user.companyDetails!['department'] ?? 'N/A'),
                 _buildInfoRow(
                     'Position', widget.user.companyDetails!['title'] ?? 'N/A'),
               ],
+              if (widget.user.university != null)
+                _buildInfoRow('University', widget.user.university!),
+              if (widget.user.domain != null)
+                _buildInfoRow('Website', widget.user.domain!),
             ],
           ),
         ],
@@ -195,9 +137,9 @@ class _UserDetailScreenState extends State<UserDetailScreen>
     );
   }
 
-  Widget _buildInfoCard({
-    required IconData icon,
+  Widget _buildSection({
     required String title,
+    required IconData icon,
     required List<Widget> children,
   }) {
     return Container(
@@ -234,54 +176,6 @@ class _UserDetailScreenState extends State<UserDetailScreen>
           const Divider(height: 24),
           ...children,
         ],
-      ),
-    );
-  }
-
-  Widget _buildContactRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Icon(icon,
-                size: 20, color: Theme.of(context).colorScheme.secondary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -341,7 +235,6 @@ class _UserDetailScreenState extends State<UserDetailScreen>
             ),
           );
         }
-
         return const Center(child: Text('No posts found'));
       },
     );
@@ -373,7 +266,6 @@ class _UserDetailScreenState extends State<UserDetailScreen>
             ),
           );
         }
-
         return const Center(child: Text('No todos found'));
       },
     );

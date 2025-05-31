@@ -6,6 +6,10 @@ A Flutter application that demonstrates user management using the BLoC pattern, 
 
 This application fetches user data from the DummyJSON API and displays it in a list with infinite scrolling. Users can search for specific users, view user details, and create posts. The app follows the BLoC pattern for state management and is organized using a clean architecture approach.
 
+## Demo Video
+
+[![App Demo](https://img.youtube.com/vi/9h2uv17lDbM/0.jpg)](https://www.youtube.com/watch?v=9h2uv17lDbM)
+
 ## Features
 
 - **User List**: Displays users with avatars, names, and emails
