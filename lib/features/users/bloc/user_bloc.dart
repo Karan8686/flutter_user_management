@@ -285,7 +285,6 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
-  // Handles loading more users when scrolling
   Future<void> _onUserLoadMore(
       UserLoadMoreEvent event, Emitter<UserState> emit) async {
     final currentState = state;
