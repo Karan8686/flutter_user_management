@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_user_management/core/api/api_client.dart';
 import 'package:flutter_user_management/features/posts/models/post_model.dart';
@@ -62,6 +63,16 @@ class PostRepository {
 
   Future<List<Post>> getUserPosts(int userId) async {
     try {
+      // First check if we have internet connectivity
+      try {
+        final result = await InternetAddress.lookup('google.com');
+        if (result.isEmpty || result[0].rawAddress.isEmpty) {
+          throw Exception('No internet connection available');
+        }
+      } on SocketException catch (_) {
+        throw Exception('No internet connection available');
+      }
+
       final response = await apiClient.get('/posts/user/$userId');
 
       // The DummyJSON API returns posts directly in a 'posts' array
@@ -71,17 +82,25 @@ class PostRepository {
           .map((postData) => Post.fromJson(postData as Map<String, dynamic>))
           .toList();
 
-      // Only return API posts, not local posts
       return posts;
     } catch (e) {
       print('Error fetching posts: $e');
-      if (e.toString().contains('Network error') ||
-          e.toString().contains('SocketException')) {
-        throw Exception('No internet connection');
+      if (e is SocketException || e.toString().contains('SocketException')) {
+        throw Exception(
+            'No internet connection available. Please check your connection and try again.');
       } else if (e.toString().contains('Failed to load data: 404')) {
-        throw Exception('User not found');
+        throw Exception(
+            'Unable to find posts for this user. The user may not exist or have been removed.');
+      } else if (e.toString().contains('No internet connection available')) {
+        throw Exception(
+            'No internet connection available. Please check your connection and try again.');
+      } else if (e.toString().contains('Connection refused') ||
+          e.toString().contains('Connection reset') ||
+          e.toString().contains('Network is unreachable')) {
+        throw Exception(
+            'Unable to connect to the server. Please check your internet connection and try again.');
       } else {
-        throw Exception('Unable to load posts');
+        throw Exception('Unable to load posts. Please try again later.');
       }
     }
   }
@@ -92,7 +111,8 @@ class PostRepository {
       return List.from(_localPosts);
     } catch (e) {
       print('Error loading local posts: $e');
-      throw Exception('Unable to load posts');
+      throw Exception(
+          'Unable to load your saved posts. Please try restarting the app.');
     }
   }
 
@@ -119,7 +139,7 @@ class PostRepository {
       return newPost;
     } catch (e) {
       print('Error creating post: $e');
-      throw Exception('Unable to save post');
+      throw Exception('Unable to save your post. Please try again.');
     }
   }
 
@@ -135,7 +155,7 @@ class PostRepository {
       await _saveLocalPosts();
     } catch (e) {
       print('Error deleting post: $e');
-      throw Exception('Unable to delete post');
+      throw Exception('Unable to delete the post. Please try again.');
     }
   }
 
@@ -152,9 +172,9 @@ class PostRepository {
     } catch (e) {
       print('Error updating post: $e');
       if (e.toString().contains('Post not found')) {
-        throw Exception('Post not found');
+        throw Exception('The post you\'re trying to update no longer exists.');
       } else {
-        throw Exception('Unable to update post');
+        throw Exception('Unable to update the post. Please try again.');
       }
     }
   }

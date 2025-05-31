@@ -140,6 +140,7 @@ class UserSelectedState extends UserState {
 // BLoC
 class UserBloc extends Bloc<UserEvent, UserState> {
   final UserRepository userRepository;
+  List<User> _cachedUsers = [];
 
   UserBloc({required this.userRepository}) : super(UserInitialState()) {
     on<UserFetchEvent>(_onUserFetch);
@@ -148,6 +149,25 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     on<UserRefreshEvent>(_onUserRefresh);
     on<UserSelectEvent>(_onUserSelect);
     on<UserClearSearchEvent>(_onUserClearSearch);
+  }
+
+  String _getUserFriendlyErrorMessage(dynamic error) {
+    final errorMessage = error.toString();
+    if (errorMessage.contains('No internet connection available')) {
+      return 'Please check your internet connection and try again.';
+    } else if (errorMessage.contains('Unable to connect to the server')) {
+      return 'Unable to reach the server. Please check your internet connection.';
+    } else if (errorMessage.contains('Connection refused') ||
+        errorMessage.contains('Connection reset') ||
+        errorMessage.contains('Network is unreachable')) {
+      return 'Network connection is unstable. Please check your internet connection.';
+    } else if (errorMessage.contains('Unable to find users')) {
+      return 'Unable to load users at this time. Please try again later.';
+    } else if (errorMessage.contains('User not found')) {
+      return 'This user is no longer available.';
+    } else {
+      return 'Something went wrong. Please try again.';
+    }
   }
 
   Future<void> _onUserFetch(
@@ -165,6 +185,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       final limit = result['limit'] as int;
       final skip = result['skip'] as int;
 
+      _cachedUsers = List.from(users);
+
       final hasReachedMax =
           users.length < limit || skip + users.length >= total;
 
@@ -176,7 +198,32 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         hasReachedMax: hasReachedMax,
       ));
     } catch (e) {
-      emit(UserErrorState(message: e.toString()));
+      // If we have cached users, show them even if there's an error
+      if (_cachedUsers.isNotEmpty) {
+        final currentState = state;
+        if (currentState is UserLoadedState) {
+          emit(UserLoadedState(
+            users: _cachedUsers,
+            total: currentState.total,
+            limit: currentState.limit,
+            skip: currentState.skip,
+            hasReachedMax: currentState.hasReachedMax,
+            searchQuery: currentState.searchQuery,
+          ));
+        } else {
+          emit(UserLoadedState(
+            users: _cachedUsers,
+            total: _cachedUsers.length,
+            limit: event.limit,
+            skip: event.skip,
+            hasReachedMax: true,
+          ));
+        }
+        // Show error as a snackbar instead of blocking the UI
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      } else {
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      }
     }
   }
 
@@ -194,6 +241,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       final users = result['users'] as List<User>;
       final total = result['total'] as int;
 
+      _cachedUsers = List.from(users);
+
       emit(UserLoadedState(
         users: users,
         total: total,
@@ -203,7 +252,21 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         searchQuery: event.query,
       ));
     } catch (e) {
-      emit(UserErrorState(message: e.toString()));
+      // If we have cached users, show them even if there's an error
+      if (_cachedUsers.isNotEmpty) {
+        emit(UserLoadedState(
+          users: _cachedUsers,
+          total: _cachedUsers.length,
+          limit: 10,
+          skip: 0,
+          hasReachedMax: true,
+          searchQuery: event.query,
+        ));
+        // Show error as a snackbar instead of blocking the UI
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      } else {
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      }
     }
   }
 
@@ -228,11 +291,14 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         final limit = result['limit'] as int;
         final skip = result['skip'] as int;
 
+        final allUsers = [...currentState.users, ...newUsers];
+        _cachedUsers = List.from(allUsers);
+
         final hasReachedMax =
             newUsers.length < limit || skip + newUsers.length >= total;
 
         emit(UserLoadedState(
-          users: [...currentState.users, ...newUsers],
+          users: allUsers,
           total: total,
           limit: limit,
           skip: skip,
@@ -240,7 +306,21 @@ class UserBloc extends Bloc<UserEvent, UserState> {
           searchQuery: currentState.searchQuery,
         ));
       } catch (e) {
-        emit(UserErrorState(message: e.toString()));
+        // If we have cached users, show them even if there's an error
+        if (_cachedUsers.isNotEmpty) {
+          emit(UserLoadedState(
+            users: _cachedUsers,
+            total: currentState.total,
+            limit: currentState.limit,
+            skip: currentState.skip,
+            hasReachedMax: currentState.hasReachedMax,
+            searchQuery: currentState.searchQuery,
+          ));
+          // Show error as a snackbar instead of blocking the UI
+          emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+        } else {
+          emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+        }
       }
     }
   }
@@ -266,6 +346,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       final limit = result['limit'] as int;
       final skip = result['skip'] as int;
 
+      _cachedUsers = List.from(users);
+
       final hasReachedMax =
           users.length < limit || skip + users.length >= total;
 
@@ -278,7 +360,32 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         searchQuery: searchQuery,
       ));
     } catch (e) {
-      emit(UserErrorState(message: e.toString()));
+      // If we have cached users, show them even if there's an error
+      if (_cachedUsers.isNotEmpty) {
+        final currentState = state;
+        if (currentState is UserLoadedState) {
+          emit(UserLoadedState(
+            users: _cachedUsers,
+            total: currentState.total,
+            limit: currentState.limit,
+            skip: currentState.skip,
+            hasReachedMax: currentState.hasReachedMax,
+            searchQuery: currentState.searchQuery,
+          ));
+        } else {
+          emit(UserLoadedState(
+            users: _cachedUsers,
+            total: _cachedUsers.length,
+            limit: 10,
+            skip: 0,
+            hasReachedMax: true,
+          ));
+        }
+        // Show error as a snackbar instead of blocking the UI
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      } else {
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      }
     }
   }
 
@@ -288,7 +395,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       final user = await userRepository.getUserById(event.userId);
       emit(UserSelectedState(user: user));
     } catch (e) {
-      emit(UserErrorState(message: e.toString()));
+      emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
     }
   }
 
@@ -307,6 +414,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
       final limit = result['limit'] as int;
       final skip = result['skip'] as int;
 
+      _cachedUsers = List.from(users);
+
       final hasReachedMax =
           users.length < limit || skip + users.length >= total;
 
@@ -318,7 +427,20 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         hasReachedMax: hasReachedMax,
       ));
     } catch (e) {
-      emit(UserErrorState(message: e.toString()));
+      // If we have cached users, show them even if there's an error
+      if (_cachedUsers.isNotEmpty) {
+        emit(UserLoadedState(
+          users: _cachedUsers,
+          total: _cachedUsers.length,
+          limit: 10,
+          skip: 0,
+          hasReachedMax: true,
+        ));
+        // Show error as a snackbar instead of blocking the UI
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      } else {
+        emit(UserErrorState(message: _getUserFriendlyErrorMessage(e)));
+      }
     }
   }
 }

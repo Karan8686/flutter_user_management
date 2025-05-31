@@ -34,14 +34,12 @@ class _UserListScreenState extends State<UserListScreen> {
     super.dispose();
   }
 
-  // Load more users when reaching the bottom of the list
   void _onScroll() {
     if (_isBottom && !_isSearching) {
       context.read<UserBloc>().add(const UserLoadMoreEvent());
     }
   }
 
-  // Check if we've scrolled to the bottom of the list
   bool get _isBottom {
     if (!_scrollController.hasClients) return false;
     final maxScroll = _scrollController.position.maxScrollExtent;
@@ -49,13 +47,13 @@ class _UserListScreenState extends State<UserListScreen> {
     return currentScroll >= (maxScroll * 0.9);
   }
 
-  // Clear search and reset the list
   void _clearSearch() {
     _searchController.clear();
     setState(() {
       _isSearching = false;
     });
     context.read<UserBloc>().add(const UserClearSearchEvent());
+    // Remove focus from search field
     FocusScope.of(context).unfocus();
   }
 
@@ -67,7 +65,6 @@ class _UserListScreenState extends State<UserListScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
@@ -90,7 +87,6 @@ class _UserListScreenState extends State<UserListScreen> {
                   _isSearching = query.isNotEmpty;
                 });
 
-                // Debounce search to avoid too many API calls
                 _debouncer.run(() {
                   if (query.isEmpty) {
                     context.read<UserBloc>().add(const UserClearSearchEvent());
@@ -101,7 +97,6 @@ class _UserListScreenState extends State<UserListScreen> {
               },
             ),
           ),
-          // User list with pull-to-refresh
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -110,15 +105,18 @@ class _UserListScreenState extends State<UserListScreen> {
               },
               child: BlocConsumer<UserBloc, UserState>(
                 listener: (context, state) {
-                  // Navigate to user details when a user is selected
-                  if (state is UserSelectedState) {
+                  if (state is UserErrorState) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(state.message)),
+                    );
+                  } else if (state is UserSelectedState) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => UserDetailScreen(user: state.user),
                       ),
                     ).then((_) {
-                      // Refresh the list when returning from details
+                      // When returning from detail screen, ensure we're in the right state
                       if (_searchController.text.isEmpty && !_isSearching) {
                         context.read<UserBloc>().add(const UserRefreshEvent());
                       }
@@ -126,12 +124,9 @@ class _UserListScreenState extends State<UserListScreen> {
                   }
                 },
                 builder: (context, state) {
-                  // Show loading indicator
                   if (state is UserInitialState || state is UserLoadingState) {
                     return const Center(child: CircularProgressIndicator());
-                  }
-                  // Show user list or empty state
-                  else if (state is UserLoadedState) {
+                  } else if (state is UserLoadedState) {
                     return state.users.isEmpty
                         ? Center(
                             child: Text(_isSearching
@@ -144,7 +139,6 @@ class _UserListScreenState extends State<UserListScreen> {
                                 ? state.users.length
                                 : state.users.length + 1,
                             itemBuilder: (context, index) {
-                              // Show loading indicator at the bottom while loading more
                               if (index >= state.users.length) {
                                 return const Center(
                                   child: Padding(
@@ -165,9 +159,7 @@ class _UserListScreenState extends State<UserListScreen> {
                               );
                             },
                           );
-                  }
-                  // Show loading more state
-                  else if (state is UserLoadingMoreState) {
+                  } else if (state is UserLoadingMoreState) {
                     return ListView.builder(
                       controller: _scrollController,
                       itemCount: state.currentUsers.length + 1,
@@ -192,42 +184,21 @@ class _UserListScreenState extends State<UserListScreen> {
                         );
                       },
                     );
-                  }
-                  // Show error state
-                  else if (state is UserErrorState) {
+                  } else if (state is UserErrorState) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            state.message == 'No internet connection'
-                                ? Icons.wifi_off
-                                : Icons.error_outline,
-                            size: 48,
-                            color: Colors.grey[400],
-                          ),
+                          Text(state.message),
                           const SizedBox(height: 16),
-                          Text(
-                            state.message,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
+                          ElevatedButton(
                             onPressed: () {
                               _clearSearch();
                               context.read<UserBloc>().add(
                                     const UserFetchEvent(limit: 10, skip: 0),
                                   );
                             },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[100],
-                              foregroundColor: Colors.grey[800],
-                            ),
+                            child: const Text('Retry'),
                           ),
                         ],
                       ),

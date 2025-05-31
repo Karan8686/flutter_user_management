@@ -114,14 +114,25 @@ class PostBloc extends Bloc<PostEvent, PostState> {
 
   String _getUserFriendlyErrorMessage(dynamic error) {
     final errorMessage = error.toString();
-    if (errorMessage.contains('No internet connection')) {
-      return 'No internet connection';
-    } else if (errorMessage.contains('User not found')) {
-      return 'User not found';
-    } else if (errorMessage.contains('Post not found')) {
-      return 'Post not found';
+    if (errorMessage.contains('No internet connection available')) {
+      return 'Please check your internet connection and try again.';
+    } else if (errorMessage.contains('Unable to connect to the server')) {
+      return 'Unable to reach the server. Please check your internet connection.';
+    } else if (errorMessage.contains('Connection refused') ||
+        errorMessage.contains('Connection reset') ||
+        errorMessage.contains('Network is unreachable')) {
+      return 'Network connection is unstable. Please check your internet connection.';
+    } else if (errorMessage.contains('Unable to find posts for this user')) {
+      return 'This user\'s posts are not available at the moment.';
+    } else if (errorMessage.contains('Unable to load your saved posts')) {
+      return 'There was a problem loading your saved posts. Please try restarting the app.';
+    } else if (errorMessage.contains('Unable to save your post')) {
+      return 'There was a problem saving your post. Please try again.';
+    } else if (errorMessage
+        .contains('The post you\'re trying to update no longer exists')) {
+      return 'This post has been deleted or is no longer available.';
     } else {
-      return 'Something went wrong';
+      return 'Something went wrong. Please try again.';
     }
   }
 
@@ -154,6 +165,9 @@ class PostBloc extends Bloc<PostEvent, PostState> {
     try {
       emit(PostLoadingState());
 
+      // Ensure repository is ready
+      await postRepository.ready;
+
       final posts = await postRepository.getUserPosts(event.userId);
       _cachedPosts = List.from(posts);
 
@@ -171,6 +185,7 @@ class PostBloc extends Bloc<PostEvent, PostState> {
         // Show error as a snackbar instead of blocking the UI
         emit(PostErrorState(message: _getUserFriendlyErrorMessage(e)));
       } else {
+        // If no cached posts, show error state
         emit(PostErrorState(message: _getUserFriendlyErrorMessage(e)));
       }
     }
