@@ -7,6 +7,7 @@ class UserRepository {
 
   UserRepository({required this.apiClient});
 
+  // Verifies internet connectivity before making requests
   Future<void> _checkInternetConnection() async {
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -18,23 +19,25 @@ class UserRepository {
     }
   }
 
+  // Fetches users with pagination and optional search
   Future<Map<String, dynamic>> getUsers({
     required int limit,
     required int skip,
     String? searchQuery,
   }) async {
     try {
-      // Check internet connection first
+      // Ensure we have internet before making the request
       await _checkInternetConnection();
 
+      // Build the endpoint URL based on whether we're searching or just fetching
       String endpoint = '/users?limit=$limit&skip=$skip';
-
       if (searchQuery != null && searchQuery.isNotEmpty) {
         endpoint = '/users/search?q=$searchQuery';
       }
 
       final response = await apiClient.get(endpoint);
 
+      // Convert the response data into User objects
       final List<User> users = (response['users'] as List)
           .map((userData) => User.fromJson(userData))
           .toList();
@@ -46,10 +49,13 @@ class UserRepository {
         'skip': response['skip'],
       };
     } catch (e) {
-      print('Error fetching users: $e');
+      // Handle specific error cases with user-friendly messages
       if (e is SocketException || e.toString().contains('SocketException')) {
         throw Exception(
             'No internet connection available. Please check your connection and try again.');
+      } else if (e.toString().contains('Failed to load data: 404')) {
+        throw Exception(
+            'Unable to find users. The search may not have returned any results.');
       } else if (e.toString().contains('No internet connection available')) {
         throw Exception(
             'No internet connection available. Please check your connection and try again.');
@@ -58,36 +64,27 @@ class UserRepository {
           e.toString().contains('Network is unreachable')) {
         throw Exception(
             'Unable to connect to the server. Please check your internet connection and try again.');
-      } else if (e.toString().contains('Failed to load data: 404')) {
-        throw Exception('Unable to find users. Please try again later.');
       } else {
         throw Exception('Unable to load users. Please try again later.');
       }
     }
   }
 
+  // Fetches a single user by their ID
   Future<User> getUserById(int userId) async {
     try {
-      // Check internet connection first
+      // Ensure we have internet before making the request
       await _checkInternetConnection();
 
       final response = await apiClient.get('/users/$userId');
       return User.fromJson(response);
     } catch (e) {
-      print('Error fetching user: $e');
       if (e is SocketException || e.toString().contains('SocketException')) {
         throw Exception(
             'No internet connection available. Please check your connection and try again.');
-      } else if (e.toString().contains('No internet connection available')) {
-        throw Exception(
-            'No internet connection available. Please check your connection and try again.');
-      } else if (e.toString().contains('Connection refused') ||
-          e.toString().contains('Connection reset') ||
-          e.toString().contains('Network is unreachable')) {
-        throw Exception(
-            'Unable to connect to the server. Please check your internet connection and try again.');
       } else if (e.toString().contains('Failed to load data: 404')) {
-        throw Exception('User not found. They may have been removed.');
+        throw Exception(
+            'User not found. They may have been removed or their account is no longer active.');
       } else {
         throw Exception('Unable to load user details. Please try again later.');
       }

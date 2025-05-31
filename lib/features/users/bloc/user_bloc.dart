@@ -3,7 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_user_management/features/users/models/user_model.dart';
 import 'package:flutter_user_management/features/users/repositories/user_repository.dart';
 
-// Events
+// User events that can be triggered in the app
 abstract class UserEvent extends Equatable {
   const UserEvent();
 
@@ -11,6 +11,7 @@ abstract class UserEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+// Event to fetch a list of users with pagination
 class UserFetchEvent extends UserEvent {
   final int limit;
   final int skip;
@@ -24,6 +25,7 @@ class UserFetchEvent extends UserEvent {
   List<Object?> get props => [limit, skip];
 }
 
+// Event to search users by name or email
 class UserSearchEvent extends UserEvent {
   final String query;
 
@@ -33,14 +35,17 @@ class UserSearchEvent extends UserEvent {
   List<Object?> get props => [query];
 }
 
+// Event to load more users when scrolling
 class UserLoadMoreEvent extends UserEvent {
   const UserLoadMoreEvent();
 }
 
+// Event to refresh the user list
 class UserRefreshEvent extends UserEvent {
   const UserRefreshEvent();
 }
 
+// Event to select a specific user for detailed view
 class UserSelectEvent extends UserEvent {
   final int userId;
 
@@ -50,11 +55,12 @@ class UserSelectEvent extends UserEvent {
   List<Object?> get props => [userId];
 }
 
+// Event to clear the current search
 class UserClearSearchEvent extends UserEvent {
   const UserClearSearchEvent();
 }
 
-// States
+// Base state for user-related operations
 abstract class UserState extends Equatable {
   const UserState();
 
@@ -62,10 +68,13 @@ abstract class UserState extends Equatable {
   List<Object?> get props => [];
 }
 
+// Initial state when the app starts
 class UserInitialState extends UserState {}
 
+// State when users are being loaded
 class UserLoadingState extends UserState {}
 
+// State when more users are being loaded while showing current list
 class UserLoadingMoreState extends UserState {
   final List<User> currentUsers;
   final int total;
@@ -79,6 +88,7 @@ class UserLoadingMoreState extends UserState {
   List<Object?> get props => [currentUsers, total];
 }
 
+// State when users have been successfully loaded
 class UserLoadedState extends UserState {
   final List<User> users;
   final int total;
@@ -119,6 +129,7 @@ class UserLoadedState extends UserState {
   }
 }
 
+// State when an error occurs during user operations
 class UserErrorState extends UserState {
   final String message;
 
@@ -128,6 +139,7 @@ class UserErrorState extends UserState {
   List<Object?> get props => [message];
 }
 
+// State when a specific user has been selected
 class UserSelectedState extends UserState {
   final User user;
 
@@ -137,7 +149,7 @@ class UserSelectedState extends UserState {
   List<Object?> get props => [user];
 }
 
-// BLoC
+// Main BLoC class that handles user-related operations
 class UserBloc extends Bloc<UserEvent, UserState> {
   final UserRepository userRepository;
   List<User> _cachedUsers = [];
@@ -151,6 +163,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     on<UserClearSearchEvent>(_onUserClearSearch);
   }
 
+  // Converts technical error messages into user-friendly ones
   String _getUserFriendlyErrorMessage(dynamic error) {
     final errorMessage = error.toString();
     if (errorMessage.contains('No internet connection available')) {
@@ -170,6 +183,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
+  // Handles fetching users with pagination
   Future<void> _onUserFetch(
       UserFetchEvent event, Emitter<UserState> emit) async {
     try {
@@ -198,7 +212,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         hasReachedMax: hasReachedMax,
       ));
     } catch (e) {
-      // If we have cached users, show them even if there's an error
+      // Show cached users if available, even if there's an error
       if (_cachedUsers.isNotEmpty) {
         final currentState = state;
         if (currentState is UserLoadedState) {
@@ -227,6 +241,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
+  // Handles searching for users
   Future<void> _onUserSearch(
       UserSearchEvent event, Emitter<UserState> emit) async {
     try {
@@ -252,7 +267,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         searchQuery: event.query,
       ));
     } catch (e) {
-      // If we have cached users, show them even if there's an error
+      // Show cached users if available, even if there's an error
       if (_cachedUsers.isNotEmpty) {
         emit(UserLoadedState(
           users: _cachedUsers,
@@ -270,6 +285,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
+  // Handles loading more users when scrolling
   Future<void> _onUserLoadMore(
       UserLoadMoreEvent event, Emitter<UserState> emit) async {
     final currentState = state;
@@ -306,7 +322,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
           searchQuery: currentState.searchQuery,
         ));
       } catch (e) {
-        // If we have cached users, show them even if there's an error
+        // Show cached users if available, even if there's an error
         if (_cachedUsers.isNotEmpty) {
           emit(UserLoadedState(
             users: _cachedUsers,
@@ -325,6 +341,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
+  // Handles refreshing the user list
   Future<void> _onUserRefresh(
       UserRefreshEvent event, Emitter<UserState> emit) async {
     try {
@@ -360,7 +377,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         searchQuery: searchQuery,
       ));
     } catch (e) {
-      // If we have cached users, show them even if there's an error
+      // Show cached users if available, even if there's an error
       if (_cachedUsers.isNotEmpty) {
         final currentState = state;
         if (currentState is UserLoadedState) {
@@ -389,6 +406,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
+  // Handles selecting a specific user
   Future<void> _onUserSelect(
       UserSelectEvent event, Emitter<UserState> emit) async {
     try {
@@ -399,6 +417,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     }
   }
 
+  // Handles clearing the current search
   Future<void> _onUserClearSearch(
       UserClearSearchEvent event, Emitter<UserState> emit) async {
     try {
@@ -427,7 +446,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         hasReachedMax: hasReachedMax,
       ));
     } catch (e) {
-      // If we have cached users, show them even if there's an error
+      // Show cached users if available, even if there's an error
       if (_cachedUsers.isNotEmpty) {
         emit(UserLoadedState(
           users: _cachedUsers,

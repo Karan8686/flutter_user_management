@@ -7,6 +7,7 @@ class ApiClient {
   final String baseUrl = 'https://dummyjson.com';
   final http.Client _httpClient = http.Client();
 
+  // Verifies internet connectivity before making requests
   Future<void> _checkInternetConnection() async {
     try {
       final result = await InternetAddress.lookup('google.com');
@@ -20,12 +21,13 @@ class ApiClient {
 
   Future<Map<String, dynamic>> get(String endpoint) async {
     try {
-      // First check internet connectivity
+      // Ensure we have internet before making the request
       await _checkInternetConnection();
 
       final url = '$baseUrl$endpoint';
       print('Making GET request to: $url');
 
+      // Make the request with a 10-second timeout
       final response = await _httpClient.get(
         Uri.parse(url),
         headers: {
@@ -42,6 +44,7 @@ class ApiClient {
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
 
+      // Handle successful response
       if (response.statusCode == 200) {
         try {
           final decoded = json.decode(response.body);
@@ -90,9 +93,10 @@ class ApiClient {
   Future<Map<String, dynamic>> post(
       String endpoint, Map<String, dynamic> data) async {
     try {
-      // First check internet connectivity
+      // Ensure we have internet before making the request
       await _checkInternetConnection();
 
+      // Make the request with a 10-second timeout
       final response = await _httpClient
           .post(
         Uri.parse('$baseUrl$endpoint'),
@@ -109,6 +113,7 @@ class ApiClient {
         },
       );
 
+      // Handle successful response
       if (response.statusCode == 200 || response.statusCode == 201) {
         try {
           final decoded = json.decode(response.body);

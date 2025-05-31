@@ -19,6 +19,7 @@ class PostRepository {
     _initPrefs();
   }
 
+  // Ensures the repository is fully initialized before use
   Future<void> get ready async {
     if (_isInitialized) return;
     if (_initCompleter != null) return _initCompleter!.future;
@@ -35,35 +36,41 @@ class PostRepository {
     return _initCompleter!.future;
   }
 
+  // Initializes local storage and loads saved posts
   Future<void> _initPrefs() async {
     _prefs = await SharedPreferences.getInstance();
     _loadLocalPosts();
     _loadNextLocalId();
   }
 
+  // Loads saved posts from local storage
   void _loadLocalPosts() {
     final postsJson = _prefs.getStringList(_localPostsKey) ?? [];
     _localPosts =
         postsJson.map((json) => Post.fromJson(jsonDecode(json))).toList();
   }
 
+  // Loads the next available local post ID
   void _loadNextLocalId() {
     _nextLocalId = _prefs.getInt(_nextLocalIdKey) ?? -1;
   }
 
+  // Saves posts to local storage
   Future<void> _saveLocalPosts() async {
     final postsJson =
         _localPosts.map((post) => jsonEncode(post.toJson())).toList();
     await _prefs.setStringList(_localPostsKey, postsJson);
   }
 
+  // Saves the next available local post ID
   Future<void> _saveNextLocalId() async {
     await _prefs.setInt(_nextLocalIdKey, _nextLocalId);
   }
 
+  // Fetches posts for a specific user from the API
   Future<List<Post>> getUserPosts(int userId) async {
     try {
-      // First check if we have internet connectivity
+      // Verify internet connectivity
       try {
         final result = await InternetAddress.lookup('google.com');
         if (result.isEmpty || result[0].rawAddress.isEmpty) {
@@ -74,17 +81,15 @@ class PostRepository {
       }
 
       final response = await apiClient.get('/posts/user/$userId');
-
-      // The DummyJSON API returns posts directly in a 'posts' array
       final postsData = response['posts'] as List<dynamic>;
 
+      // Convert API response to Post objects
       final List<Post> posts = postsData
           .map((postData) => Post.fromJson(postData as Map<String, dynamic>))
           .toList();
 
       return posts;
     } catch (e) {
-      print('Error fetching posts: $e');
       if (e is SocketException || e.toString().contains('SocketException')) {
         throw Exception(
             'No internet connection available. Please check your connection and try again.');
@@ -105,24 +110,24 @@ class PostRepository {
     }
   }
 
+  // Retrieves all locally saved posts
   Future<List<Post>> getAllLocalPosts() async {
     try {
-      // Return all local posts
       return List.from(_localPosts);
     } catch (e) {
-      print('Error loading local posts: $e');
       throw Exception(
           'Unable to load your saved posts. Please try restarting the app.');
     }
   }
 
+  // Creates a new post and saves it locally
   Future<Post> createPost({
     required String title,
     required String body,
     required int userId,
   }) async {
     try {
-      // Create post locally
+      // Create a new local post with a negative ID to distinguish it from API posts
       final newPost = Post.local(
         id: _nextLocalId--,
         title: title,
@@ -131,35 +136,31 @@ class PostRepository {
       );
 
       _localPosts.insert(0, newPost); // Add to beginning of list
-
-      // Save to persistent storage
       await _saveLocalPosts();
       await _saveNextLocalId();
 
       return newPost;
     } catch (e) {
-      print('Error creating post: $e');
       throw Exception('Unable to save your post. Please try again.');
     }
   }
 
-  // Get local posts count
+  // Returns the count of locally saved posts
   int getLocalPostsCount() {
     return _localPosts.length;
   }
 
-  // Delete a local post
+  // Removes a post from local storage
   Future<void> deleteLocalPost(int postId) async {
     try {
       _localPosts.removeWhere((post) => post.id == postId);
       await _saveLocalPosts();
     } catch (e) {
-      print('Error deleting post: $e');
       throw Exception('Unable to delete the post. Please try again.');
     }
   }
 
-  // Update a local post
+  // Updates an existing local post
   Future<void> updateLocalPost(Post updatedPost) async {
     try {
       final index = _localPosts.indexWhere((post) => post.id == updatedPost.id);
@@ -170,7 +171,6 @@ class PostRepository {
         throw Exception('Post not found');
       }
     } catch (e) {
-      print('Error updating post: $e');
       if (e.toString().contains('Post not found')) {
         throw Exception('The post you\'re trying to update no longer exists.');
       } else {
